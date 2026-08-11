@@ -1,0 +1,24 @@
+# ── Secrets & Zertifikate ──────────────────────────────
+**/secrets/
+traefik/letsencrypt/
+*.pem
+*.key
+acme.json
+
+# ── Runtime-Daten (Bind-Mounts der Container) ──────────
+**/data/
+
+# ── Logs ────────────────────────────────────────────────
+**/logs/
+*.log
+
+# ── Umgebungsvariablen (echte Werte) ───────────────────
+.env
+*.env
+!.env.example
+
+# ── Editor / OS ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/

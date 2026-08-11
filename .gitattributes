@@ -1,0 +1,10 @@
+# All text files use LF line endings, regardless of local OS
+# Important for consistency since configs are deployed on a Linux server
+* text=auto eol=lf
+
+# Shell scripts must have LF, otherwise execution fails on Linux
+*.sh text eol=lf
+
+# Binary files (e.g. future diagrams) explicitly excluded
+*.png binary
+*.jpg binary

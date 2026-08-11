@@ -1,0 +1,26 @@
+http:
+  middlewares:
+
+    security-headers:
+      headers:
+        contentTypeNosniff: true
+        browserXssFilter: true
+        frameDeny: true
+        referrerPolicy: strict-origin-when-cross-origin
+
+    compression:
+      compress: {}
+
+    dashboard-auth:
+      basicAuth:
+        usersFile: /run/secrets/dashboard_auth_users
+
+    monitoring-auth:
+      basicAuth:
+        usersFile: /run/secrets/monitoring_auth_users
+
+    secured:
+      chain:
+        middlewares:
+          - security-headers
+          - compression

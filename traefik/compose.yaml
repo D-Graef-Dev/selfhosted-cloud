@@ -1,0 +1,43 @@
+services:
+  traefik:
+    image: traefik:v3.7.7
+    container_name: traefik
+    restart: unless-stopped
+    environment:
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=${ACME_EMAIL}
+    secrets:
+      - dashboard_auth_users
+      - monitoring_auth_users
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)
+      - traefik.http.routers.dashboard.entrypoints=websecure
+      - traefik.http.routers.dashboard.tls=true
+      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=secured@file,dashboard-auth@file
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/traefik.yml:ro
+      - ./dynamic:/dynamic:ro
+      - ./letsencrypt:/letsencrypt
+      - ./logs:/logs
+
+    networks:
+      - proxy
+
+secrets:
+  dashboard_auth_users:
+    file: ./secrets/dashboard_auth_users
+  monitoring_auth_users:
+    file: ./secrets/monitoring_auth_users
+
+networks:
+  proxy:
+    external: true
+
