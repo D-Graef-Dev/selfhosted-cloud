@@ -35,9 +35,9 @@ entryPoints:
 certificatesResolvers:
   letsencrypt:
     acme:
-      # Mail wird NICHT hier gesetzt, sondern per ENV-Var injiziert
+      # E-Mail wird bewusst NICHT hier gesetzt, sondern per ENV-Var injiziert
       # (siehe TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL in compose.yaml)
-      # Grund: Der File-Provider für statische Config unterstützt keine ${VAR}-Interpolation :(
+      # Wegen: Die statische Konfiguration unterstützt keine ${VAR}-Interpolation :(
       storage: /letsencrypt/acme.json
 
       httpChallenge:

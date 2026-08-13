@@ -24,3 +24,7 @@ http:
         middlewares:
           - security-headers
           - compression
+    vpn-only:
+      ipAllowList:
+        sourceRange:
+          - "10.10.10.0/24"
