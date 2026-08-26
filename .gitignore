@@ -22,3 +22,6 @@ acme.json
 Thumbs.db
 *.swp
 .vscode/
+
+# ── Lokale Hilfsdateien ─────────────────────────────────
+commit-msg*.txt
