@@ -26,7 +26,6 @@ services:
       - ./traefik.yml:/traefik.yml:ro
       - ./dynamic:/dynamic:ro
       - ./letsencrypt:/letsencrypt
-      - ./logs:/logs
 
     networks:
       - proxy
