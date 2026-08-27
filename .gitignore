@@ -25,3 +25,4 @@ Thumbs.db
 
 # ── Lokale Hilfsdateien ─────────────────────────────────
 commit-msg*.txt
+*.bak
