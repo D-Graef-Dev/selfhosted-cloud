@@ -1,0 +1,34 @@
+services:
+  loki:
+    image: grafana/loki:3.7.3
+    container_name: loki
+
+    command:
+      - "-config.file=/etc/loki/config.yml"
+
+    restart: unless-stopped
+
+    networks:
+      - proxy
+      - monitoring
+
+    volumes:
+      - ./config.yml:/etc/loki/config.yml:ro
+      - ./data:/loki
+
+    labels:
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.loki.rule=Host(`loki.${DOMAIN}`)"
+      - "traefik.http.routers.loki.entrypoints=websecure"
+      - "traefik.http.routers.loki.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.loki.tls=true"
+      - "traefik.http.routers.loki.middlewares=vpn-only@file,secured@file,monitoring-auth@file"
+
+      - "traefik.http.services.loki.loadbalancer.server.port=3100"
+
+networks:
+  proxy:
+    external: true
+  monitoring:
+    external: true
