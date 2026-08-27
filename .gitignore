@@ -13,7 +13,6 @@ acme.json
 *.log
 
 # ── Umgebungsvariablen (echte Werte) ───────────────────
-.env
 *.env
 !.env.example
 
