@@ -1,0 +1,84 @@
+discovery.docker "containers" {
+	host                = "unix:///var/run/docker.sock"
+	match_first_network = true
+}
+
+discovery.relabel "container_logs" {
+	targets = discovery.docker.containers.targets
+
+	// TODO: Roll-out auf alle Container - diese Regel entfernen.
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/traefik"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "job"
+		replacement   = "$1"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+		target_label  = "stack"
+	}
+}
+
+loki.source.docker "containers" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.container_logs.output
+	forward_to = [loki.process.traefik.receiver]
+}
+
+loki.process "traefik" {
+	forward_to = [loki.process.traefik_level.receiver]
+
+	stage.match {
+		selector = `{job="traefik"} |~ "^[{]"`
+
+		stage.static_labels {
+			values = {logtype = "access"}
+		}
+	}
+
+	stage.match {
+		selector = `{job="traefik"} !~ "^[{]"`
+
+		stage.static_labels {
+			values = {logtype = "process"}
+		}
+	}
+}
+
+loki.process "traefik_level" {
+	forward_to = [loki.write.default.receiver]
+
+	stage.match {
+		selector = `{logtype="process"}`
+
+		// Traefik faerbt den Prozess-Log per Default (log.nocolor).
+		// Ohne decolorize findet der Regex das Level nicht.
+		stage.decolorize { }
+
+		stage.regex {
+			expression = "^\\S+ (?P<lvl>[A-Z]{3}) "
+		}
+
+		stage.template {
+			source   = "lvl"
+			template = "{{ if eq .Value \"TRC\" }}trace{{ else if eq .Value \"DBG\" }}debug{{ else if eq .Value \"INF\" }}info{{ else if eq .Value \"WRN\" }}warn{{ else if eq .Value \"ERR\" }}error{{ else if eq .Value \"FTL\" }}fatal{{ else }}unknown{{ end }}"
+		}
+
+		stage.structured_metadata {
+			values = {level = "lvl"}
+		}
+	}
+}
+
+loki.write "default" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}
