@@ -1,0 +1,20 @@
+services:
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.57.0
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - monitoring
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+
+networks:
+  monitoring:
+    external: true
