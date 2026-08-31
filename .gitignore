@@ -25,3 +25,6 @@ Thumbs.db
 # ── Lokale Hilfsdateien ─────────────────────────────────
 commit-msg*.txt
 *.bak
+
+# ── Dashboards (Fremdinhalt, siehe README) ─────────────
+grafana/provisioning/dashboards/json/*.json
