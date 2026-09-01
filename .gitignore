@@ -27,4 +27,6 @@ commit-msg*.txt
 *.bak
 
 # ── Dashboards (Fremdinhalt, siehe README) ─────────────
+# Fremde Dashboards rauß, eigene rein.
 grafana/provisioning/dashboards/json/*.json
+!grafana/provisioning/dashboards/json/container-metrics.json
