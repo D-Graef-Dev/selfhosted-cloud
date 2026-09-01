@@ -8,9 +8,9 @@ services:
       - proxy
       - monitoring
     volumes:
-      - /opt/grafana/data:/var/lib/grafana
-      - /opt/grafana/provisioning:/etc/grafana/provisioning:ro
-      - /opt/grafana/secrets/admin_password:/run/secrets/admin_password:ro
+      - ./data:/var/lib/grafana
+      - ./provisioning:/etc/grafana/provisioning:ro
+      - ./secrets/admin_password:/run/secrets/admin_password:ro
     environment:
       - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN}
       - GF_SERVER_DOMAIN=grafana.${DOMAIN}
