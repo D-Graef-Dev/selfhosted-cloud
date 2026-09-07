@@ -22,6 +22,7 @@ entryPoints:
     address: ":80"
 
     http:
+      aliasHeadersStrategy: delete
       redirections:
         entryPoint:
           to: websecure
@@ -30,6 +31,8 @@ entryPoints:
 
   websecure:
     address: ":443"
+    http:
+      aliasHeadersStrategy: delete
 
 certificatesResolvers:
   letsencrypt:
