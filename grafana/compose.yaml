@@ -23,7 +23,16 @@ services:
       - traefik.http.routers.grafana.entrypoints=websecure
       - traefik.http.routers.grafana.tls=true
       - traefik.http.routers.grafana.tls.certresolver=letsencrypt
-      - traefik.http.routers.grafana.middlewares=secured@file
+      - traefik.http.routers.grafana.middlewares=rate-limit@file,secured@file
+
+      - traefik.http.routers.grafana-login.rule=Host(`grafana.${DOMAIN}`) && Path(`/api/auth/signin`)
+      - traefik.http.routers.grafana-login.priority=100
+      - traefik.http.routers.grafana-login.entrypoints=websecure
+      - traefik.http.routers.grafana-login.tls=true
+      - traefik.http.routers.grafana-login.tls.certresolver=letsencrypt
+      - traefik.http.routers.grafana-login.middlewares=login-rate-limit@file,secured@file
+      - traefik.http.routers.grafana-login.service=grafana
+
       - traefik.http.services.grafana.loadbalancer.server.port=3000
 
 networks:

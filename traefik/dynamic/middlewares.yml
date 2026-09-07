@@ -28,3 +28,14 @@ http:
       ipAllowList:
         sourceRange:
           - "10.10.10.0/24"
+
+    rate-limit:
+      rateLimit:
+        average: 30
+        burst: 100
+
+    login-rate-limit:
+      rateLimit:
+        average: 6
+        period: 1m
+        burst: 5
