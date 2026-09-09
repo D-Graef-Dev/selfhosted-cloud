@@ -4,6 +4,7 @@ traefik/letsencrypt/
 *.pem
 *.key
 acme.json
+**/users_database.yml
 
 # ── Runtime-Daten (Bind-Mounts der Container) ──────────
 **/data/

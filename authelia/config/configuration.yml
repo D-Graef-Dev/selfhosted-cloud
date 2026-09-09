@@ -1,0 +1,46 @@
+server:
+  endpoints:
+    authz:
+      forward-auth:
+        implementation: 'ForwardAuth'
+
+log:
+  level: 'info'
+  format: 'json'
+
+totp:
+  issuer: 'dgraef.de'
+
+authentication_backend:
+  file:
+    path: '/config/users_database.yml'
+
+access_control:
+  default_policy: 'deny'
+  rules:
+    - domain: 'grafana.dgraef.de'
+      policy: 'two_factor'
+
+session:
+  cookies:
+    - name: 'authelia_session'
+      domain: 'dgraef.de'
+      authelia_url: 'https://auth.dgraef.de'
+      default_redirection_url: 'https://grafana.dgraef.de'
+      expiration: '1 hour'
+      inactivity: '5 minutes'
+
+regulation:
+  modes:
+    - 'ip'
+  max_retries: 3
+  find_time: '5 minutes'
+  ban_time: '15 minutes'
+
+storage:
+  local:
+    path: '/data/db.sqlite3'
+
+notifier:
+  filesystem:
+    filename: '/data/notification.txt'

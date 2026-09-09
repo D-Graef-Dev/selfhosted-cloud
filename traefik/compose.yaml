@@ -31,6 +31,7 @@ services:
 
     networks:
       - proxy
+      - auth
 
 secrets:
   dashboard_auth_users:
@@ -40,4 +41,6 @@ secrets:
 
 networks:
   proxy:
+    external: true
+  auth:
     external: true
