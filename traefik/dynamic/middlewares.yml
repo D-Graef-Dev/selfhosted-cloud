@@ -4,9 +4,10 @@ http:
     security-headers:
       headers:
         contentTypeNosniff: true
-        browserXssFilter: true
         frameDeny: true
         referrerPolicy: strict-origin-when-cross-origin
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
 
     compression:
       compress: {}
