@@ -9,7 +9,7 @@ log:
   format: 'json'
 
 totp:
-  issuer: 'dgraef.de'
+  issuer: '{{ mustEnv "DOMAIN" }}'
 
 authentication_backend:
   file:
@@ -18,15 +18,15 @@ authentication_backend:
 access_control:
   default_policy: 'deny'
   rules:
-    - domain: 'grafana.dgraef.de'
+    - domain: 'grafana.{{ mustEnv "DOMAIN" }}'
       policy: 'two_factor'
 
 session:
   cookies:
     - name: 'authelia_session'
-      domain: 'dgraef.de'
-      authelia_url: 'https://auth.dgraef.de'
-      default_redirection_url: 'https://grafana.dgraef.de'
+      domain: '{{ mustEnv "DOMAIN" }}'
+      authelia_url: 'https://auth.{{ mustEnv "DOMAIN" }}'
+      default_redirection_url: 'https://grafana.{{ mustEnv "DOMAIN" }}'
       expiration: '1 hour'
       inactivity: '5 minutes'
 
