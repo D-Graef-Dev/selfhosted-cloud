@@ -3,6 +3,8 @@ services:
     image: grafana/grafana:13.1.0
     container_name: grafana
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges
     user: "472:0"
     networks:
       - proxy

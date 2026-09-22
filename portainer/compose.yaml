@@ -3,6 +3,8 @@ services:
     image: portainer/portainer-ce:2.39.4
     container_name: portainer
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges
 
     labels:
       - traefik.enable=true

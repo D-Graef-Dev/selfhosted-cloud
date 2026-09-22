@@ -3,6 +3,8 @@ services:
     image: authelia/authelia:4.39.22
     container_name: authelia
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges
     user: "1000:1000"
     command:
       - "authelia"
