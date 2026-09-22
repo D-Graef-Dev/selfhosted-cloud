@@ -24,14 +24,43 @@ services:
       - "443:443"
 
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik.yml:/traefik.yml:ro
       - ./dynamic:/dynamic:ro
       - ./letsencrypt:/letsencrypt
 
+    depends_on:
+      - socket-proxy
+
     networks:
       - proxy
       - auth
+      - socket-proxy
+
+
+  socket-proxy:
+    image: wollomatic/socket-proxy:1.12.3
+    container_name: traefik-socket-proxy
+    restart: unless-stopped
+    user: "65532:983"
+    mem_limit: 64M
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
+    command:
+      - '-loglevel=info'
+      - '-listenip=0.0.0.0'
+      - '-allowfrom=traefik'
+      - '-allowGET=/v1\..{1,2}/(version|containers/.*|events.*)'
+      - '-allowHEAD=/_ping'
+      - '-watchdoginterval=3600'
+      - '-stoponwatchdog'
+      - '-shutdowngracetime=5'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket-proxy
 
 secrets:
   dashboard_auth_users:
@@ -44,3 +73,5 @@ networks:
     external: true
   auth:
     external: true
+  socket-proxy:
+    internal: true

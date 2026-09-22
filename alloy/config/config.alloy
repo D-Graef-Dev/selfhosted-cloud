@@ -1,5 +1,5 @@
 discovery.docker "containers" {
-	host                = "unix:///var/run/docker.sock"
+	host                = "tcp://alloy-socket-proxy:2375"
 	match_first_network = true
 }
 
@@ -27,7 +27,7 @@ discovery.relabel "container_logs" {
 }
 
 loki.source.docker "containers" {
-	host       = "unix:///var/run/docker.sock"
+	host       = "tcp://alloy-socket-proxy:2375"
 	targets    = discovery.relabel.container_logs.output
 	forward_to = [loki.process.traefik.receiver]
 }
