@@ -3,6 +3,12 @@ services:
     image: grafana/alloy:v1.18.1
     container_name: alloy
     restart: unless-stopped
+    user: "473:473"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
     depends_on:
       - socket-proxy
     volumes:

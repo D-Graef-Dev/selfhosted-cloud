@@ -3,6 +3,12 @@ services:
     image: traefik:v3.7.13
     container_name: traefik
     restart: unless-stopped
+    user: "995:981"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
     environment:
       - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=${ACME_EMAIL}
 
@@ -41,7 +47,7 @@ services:
     image: wollomatic/socket-proxy:1.12.3
     container_name: traefik-socket-proxy
     restart: unless-stopped
-    user: "65532:983"
+    user: "65534:983"
     mem_limit: 64M
     read_only: true
     cap_drop:
