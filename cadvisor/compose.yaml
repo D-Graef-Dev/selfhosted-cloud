@@ -3,7 +3,8 @@ services:
     image: ghcr.io/google/cadvisor:v0.57.0
     container_name: cadvisor
     restart: unless-stopped
-    privileged: true
+    cap_add:
+      - SYSLOG
     devices:
       - /dev/kmsg
     networks:
