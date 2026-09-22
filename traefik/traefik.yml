@@ -37,6 +37,8 @@ entryPoints:
     address: ":443"
     http:
       aliasHeadersStrategy: delete
+      middlewares:
+        - secured@file
 
 certificatesResolvers:
   letsencrypt:

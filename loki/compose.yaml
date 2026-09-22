@@ -23,7 +23,7 @@ services:
       - "traefik.http.routers.loki.entrypoints=websecure"
       - "traefik.http.routers.loki.tls.certresolver=letsencrypt"
       - "traefik.http.routers.loki.tls=true"
-      - "traefik.http.routers.loki.middlewares=vpn-only@file,secured@file,monitoring-auth@file"
+      - "traefik.http.routers.loki.middlewares=admin@file,monitoring-auth@file"
 
       - "traefik.http.services.loki.loadbalancer.server.port=3100"
 

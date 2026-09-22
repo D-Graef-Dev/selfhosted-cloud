@@ -11,7 +11,7 @@ services:
       - traefik.http.routers.portainer.entrypoints=websecure
       - traefik.http.routers.portainer.tls=true
       - traefik.http.routers.portainer.tls.certresolver=letsencrypt
-      - traefik.http.routers.portainer.middlewares=vpn-only@file,secured@file
+      - traefik.http.routers.portainer.middlewares=admin@file
       - traefik.http.services.portainer.loadbalancer.server.port=9000
 
     volumes:

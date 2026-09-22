@@ -4,10 +4,13 @@ http:
     security-headers:
       headers:
         contentTypeNosniff: true
-        frameDeny: true
         referrerPolicy: strict-origin-when-cross-origin
         stsSeconds: 31536000
         stsIncludeSubdomains: true
+
+    frame-deny:
+      headers:
+        frameDeny: true
 
     compression:
       compress: {}
@@ -30,6 +33,12 @@ http:
       ipAllowList:
         sourceRange:
           - "10.10.10.0/24"
+
+    admin:
+      chain:
+        middlewares:
+          - frame-deny
+          - vpn-only
 
     rate-limit:
       rateLimit:
