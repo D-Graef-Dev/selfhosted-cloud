@@ -17,3 +17,7 @@ scrape_configs:
     metric_relabel_configs:
       - regex: "container_label_.*"
         action: labeldrop
+
+  - job_name: "crowdsec"
+    static_configs:
+      - targets: ["crowdsec:6060"]
