@@ -1,0 +1,31 @@
+services:
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    container_name: alertmanager
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges
+    user: "65534:65534"
+    read_only: true
+    cap_drop:
+      - ALL
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--cluster.listen-address="
+      - "--enable-feature=utf8-strict-mode"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./data:/alertmanager
+    secrets:
+      - discord_webhook_url
+    networks:
+      - monitoring
+
+secrets:
+  discord_webhook_url:
+    file: ./secrets/discord_webhook_url
+
+networks:
+  monitoring:
+    external: true
