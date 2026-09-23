@@ -5,6 +5,10 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges
+    user: "65534:65534"
+    read_only: true
+    cap_drop:
+      - ALL
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
