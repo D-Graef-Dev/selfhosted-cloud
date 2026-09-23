@@ -1,0 +1,63 @@
+services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.8.1
+    container_name: crowdsec
+    restart: unless-stopped
+    environment:
+      DISABLE_ONLINE_API: "false"
+      COLLECTIONS: "crowdsecurity/linux crowdsecurity/traefik crowdsecurity/http-cve crowdsecurity/base-http-scenarios LePresidente/authelia"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /opt/crowdsec/config:/etc/crowdsec
+      - /opt/crowdsec/data:/var/lib/crowdsec/data
+      - /opt/crowdsec/acquis.d:/etc/crowdsec/acquis.d:ro
+      - /var/log/crowdsec:/var/log/crowdsec:ro
+    tmpfs:
+      - /tmp
+    read_only: true
+    cap_drop:
+      - ALL
+    group_add:
+      - "4"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - monitoring
+      - socket-proxy
+
+  socket-proxy:
+    image: wollomatic/socket-proxy:1.12.3
+    container_name: crowdsec-socket-proxy
+    restart: unless-stopped
+    user: "65534:983"
+    mem_limit: 64M
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
+    command:
+      - '-loglevel=info'
+      - '-listenip=0.0.0.0'
+      - '-allowfrom=crowdsec'
+      - '-allowGET=/v1\..{1,2}/version'
+      - '-allowGET=/v1\..{1,2}/info'
+      - '-allowGET=/v1\..{1,2}/events'
+      - '-allowGET=/v1\..{1,2}/containers/json'
+      - '-allowGET=/v1\..{1,2}/containers/[^/]+/logs'
+      - '-allowGET=/_ping'
+      - '-allowHEAD=/_ping'
+      - '-watchdoginterval=3600'
+      - '-stoponwatchdog'
+      - '-shutdowngracetime=5'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket-proxy
+
+networks:
+  monitoring:
+    external: true
+  socket-proxy:
+    internal: true

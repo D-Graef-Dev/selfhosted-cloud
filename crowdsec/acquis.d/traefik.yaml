@@ -1,0 +1,6 @@
+source: docker
+container_name:
+  - traefik
+docker_host: tcp://crowdsec-socket-proxy:2375
+labels:
+  type: traefik
