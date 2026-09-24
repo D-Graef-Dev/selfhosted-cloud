@@ -9,6 +9,10 @@ services:
     read_only: true
     cap_drop:
       - ALL
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.external-url=https://prometheus.${DOMAIN}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
