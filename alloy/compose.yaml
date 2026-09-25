@@ -22,7 +22,7 @@ services:
     image: wollomatic/socket-proxy:1.12.3
     container_name: alloy-socket-proxy
     restart: unless-stopped
-    user: "65534:983"
+    user: "65534:${DOCKER_GID:?}"
     mem_limit: 64M
     read_only: true
     cap_drop:
