@@ -14,20 +14,20 @@ services:
       - ./provisioning:/etc/grafana/provisioning:ro
       - ./secrets/admin_password:/run/secrets/admin_password:ro
     environment:
-      - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN}
-      - GF_SERVER_DOMAIN=grafana.${DOMAIN}
+      - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN:?}
+      - GF_SERVER_DOMAIN=grafana.${DOMAIN:?}
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/admin_password
       - GF_USERS_ALLOW_SIGN_UP=false
     labels:
       - traefik.enable=true
-      - traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)
+      - traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN:?}`)
       - traefik.http.routers.grafana.entrypoints=websecure
       - traefik.http.routers.grafana.tls=true
       - traefik.http.routers.grafana.tls.certresolver=letsencrypt
       - traefik.http.routers.grafana.middlewares=rate-limit@file,frame-deny@file,authelia@file
 
-      - traefik.http.routers.grafana-login.rule=Host(`grafana.${DOMAIN}`) && Path(`/api/auth/signin`)
+      - traefik.http.routers.grafana-login.rule=Host(`grafana.${DOMAIN:?}`) && Path(`/api/auth/signin`)
       - traefik.http.routers.grafana-login.priority=100
       - traefik.http.routers.grafana-login.entrypoints=websecure
       - traefik.http.routers.grafana-login.tls=true

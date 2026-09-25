@@ -13,14 +13,14 @@ services:
 
     environment:
       - X_AUTHELIA_CONFIG_FILTERS=template
-      - DOMAIN=${DOMAIN}
+      - DOMAIN=${DOMAIN:?}
       - AUTHELIA_SESSION_SECRET_FILE=/secrets/session_secret
       - AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE=/secrets/storage_encryption_key
       - AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE=/secrets/jwt_secret
 
     labels:
       - traefik.enable=true
-      - traefik.http.routers.authelia.rule=Host(`auth.${DOMAIN}`)
+      - traefik.http.routers.authelia.rule=Host(`auth.${DOMAIN:?}`)
       - traefik.http.routers.authelia.entrypoints=websecure
       - traefik.http.routers.authelia.tls=true
       - traefik.http.routers.authelia.tls.certresolver=letsencrypt

@@ -21,7 +21,7 @@ services:
     labels:
       - "traefik.enable=true"
 
-      - "traefik.http.routers.loki.rule=Host(`loki.${DOMAIN}`)"
+      - "traefik.http.routers.loki.rule=Host(`loki.${DOMAIN:?}`)"
       - "traefik.http.routers.loki.entrypoints=websecure"
       - "traefik.http.routers.loki.tls.certresolver=letsencrypt"
       - "traefik.http.routers.loki.tls=true"
