@@ -326,8 +326,11 @@ For a second user in the same file, skip `-c`, otherwise the file is overwritten
 
 ```bash
 read -rs -p "Grafana admin password: " GF_PW && printf '%s' "$GF_PW" > grafana/secrets/admin_password && unset GF_PW
-chmod 600 grafana/secrets/admin_password
+sudo chown root:root grafana/secrets/admin_password
+sudo chmod 640 grafana/secrets/admin_password
 ```
+
+Grafana runs as `472:0` and reads the file through group `0`. Only root can change it.
 
 Grafana does not read the file, the entrypoint script of the image does. This shows in the first log line on startup, before Grafana's own logger. This is why the `__FILE` convention works on `GF_SECURITY_ADMIN_PASSWORD__FILE`.
 
@@ -369,7 +372,16 @@ sudo chown 65534:65534 alertmanager/secrets/discord_webhook_url
 
 ### CrowdSec
 
-The host configuration from `host/` has to be in place first. The log file must exist before CrowdSec starts reading it. Copy both files to the same paths under `/etc` and restart rsyslog.
+The host configuration from `host/` has to be in place first. The log file must exist before CrowdSec starts reading it.
+
+```bash
+sudo install -d -o syslog -g adm -m 750 /var/log/crowdsec
+sudo install -o root -g root -m 644 host/etc/rsyslog.d/40-crowdsec-auth.conf /etc/rsyslog.d/
+sudo install -o root -g root -m 644 host/etc/logrotate.d/crowdsec-auth /etc/logrotate.d/
+sudo rsyslogd -N1 && sudo systemctl restart rsyslog
+```
+
+`install` sets owner and mode in one step. `rsyslogd -N1` validates the configuration without touching the running service, so rsyslog only restarts if the check passes.
 
 CrowdSec reads the auth log from its own directory `/var/log/crowdsec/` instead of a single mounted file. A single-file bind mount follows the inode, so after logrotate creates a new file, the container would keep reading the old one.
 
