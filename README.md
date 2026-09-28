@@ -28,6 +28,7 @@ Running directly on the host:
 |---|---|---|
 | Node Exporter | 1.12.1 | Collects metrics from host: CPU, RAM, Disk, Network |
 | CrowdSec Firewall Bouncer | v0.0.36 | Drops traffic from IPs banned by CrowdSec in nftables |
+| restic | 0.19.1 | Backups. Runs as a container, started by a script on the host |
 
 Note on Node Exporter: It runs as a systemd service, not in a container. Running it containerized would require host network and PID namespace access, which removes most of the isolation. The official documentation recommends running it on the host.
 
@@ -215,9 +216,12 @@ Each stack lives in its own directory under `/opt/` on the server, with the same
 
 | File | Purpose |
 |---|---|
-| `host/etc/systemd/system/node_exporter.service` | Node Exporter unit with systemd hardening |
+| `host/etc/systemd/system/node_exporter.service` | Node Exporter unit with systemd hardening and textfile collector |
 | `host/etc/rsyslog.d/40-crowdsec-auth.conf` | Writes auth messages to `/var/log/crowdsec/auth.log` |
 | `host/etc/logrotate.d/crowdsec-auth` | Rotation for that file |
+| `host/usr/local/sbin/restic-backup.sh` | Backup script |
+| `host/etc/systemd/system/restic-backup.service` | Runs the backup script |
+| `host/etc/systemd/system/restic-backup.timer` | Starts the backup at 03:30 |
 
 WireGuard, UFW, the Hetzner Cloud Firewall and the firewall bouncer configuration are not part of this repository. See [What's missing](#whats-missing).
 
@@ -406,6 +410,7 @@ Alert rules are in `prometheus/rules/`:
 |---|---|
 | `targets.yml` | `TargetDown`: a scrape target is down for 2 minutes |
 | `node-filesystem.yml` | Four filesystem rules adapted from the node-mixin of Node Exporter |
+| `backup.yml` | `BackupTooOld`: no successful backup for 26 hours. `BackupMetricMissing`: backup metric missing for 30 minutes |
 
 Unit tests for the rules are in `prometheus/tests/` and run with promtool from the Prometheus image:
 
@@ -423,6 +428,59 @@ docker kill --signal=HUP prometheus
 ```
 
 Alertmanager groups alerts by name and sends them to Discord, including resolved alerts. A critical filesystem alert mutes the matching warning. Alertmanager has no published port and no Traefik route. High availability is disabled, so the cluster port is not opened.
+
+
+### Backup
+
+restic backs up `/etc`, `/opt`, `/root` and `/home` to a repository in `/srv/backup/restic` on the same server. `prometheus/data`, `loki/data` and `/root/.cache` are excluded.
+
+`restic-backup.sh` stops Grafana, Authelia, Portainer and CrowdSec, runs the backup and starts them again. They are down for about three seconds. Traefik keeps running. After that the script applies the retention policy (7 daily, 4 weekly, 6 monthly) and runs `restic check --read-data`.
+
+restic runs in the `restic/restic` image, pinned by digest, with `--network none`. The host directories are mounted read-only under `/host/`, so paths in the snapshots start with `/host/`.
+
+The timer starts the backup at 03:30 local time. After a successful run the script writes `restic_backup_last_success_timestamp_seconds` to the textfile collector directory of Node Exporter.
+
+Repository and password:
+
+```bash
+sudo install -d -m 700 -o root -g root /etc/restic /srv/backup/restic
+read -rs -p "restic password: " RP; echo; printf '%s' "$RP" | sudo sh -c 'umask 077; cat > /etc/restic/password'; unset RP
+docker run --rm --network none \
+  -v /srv/backup/restic:/repo \
+  -v /etc/restic/password:/run/secrets/restic_password:ro \
+  -e RESTIC_REPOSITORY=/repo \
+  -e RESTIC_PASSWORD_FILE=/run/secrets/restic_password \
+  restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510 init
+```
+
+The password is also stored in a password manager. Without it the backup cannot be read.
+
+Script, units and the textfile collector directory:
+
+```bash
+sudo install -d -m 755 -o root -g root /var/lib/node_exporter/textfile_collector
+sudo install -m 700 -o root -g root host/usr/local/sbin/restic-backup.sh /usr/local/sbin/
+sudo install -m 644 -o root -g root host/etc/systemd/system/restic-backup.service host/etc/systemd/system/restic-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start restic-backup.service
+sudo systemctl enable --now restic-backup.timer
+```
+
+Restore, here for `/etc/wireguard`:
+
+```bash
+sudo install -d -m 700 /root/restore
+docker run --rm --network none \
+  -v /srv/backup/restic:/repo:ro \
+  -v /etc/restic/password:/run/secrets/restic_password:ro \
+  -v /root/restore:/restore \
+  -e RESTIC_REPOSITORY=/repo \
+  -e RESTIC_PASSWORD_FILE=/run/secrets/restic_password \
+  restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510 \
+  --no-cache --no-lock restore latest --target /restore --include /host/etc/wireguard
+```
+
+Restored files keep owner and mode. Without Docker, the restic binary from the GitHub release can read the repository as well.
 
 
 ### Grafana dashboards
@@ -469,13 +527,17 @@ Traefik only routes to a container with a healthcheck once it is healthy. A `404
 
 If the Docker package is reinstalled, the `docker` group can get a different GID. `DOCKER_GID` then has to be updated in all three `.env` files.
 
+Containers use `restart: unless-stopped`. A container stopped by `restic-backup.sh` stays stopped if the server reboots during the backup.
+
+`wget` in the Prometheus image fails on container names with `bad address`. Only `localhost` works. Prometheus itself resolves the names.
+
 
 ## What's missing
 
 ### Observability
 
 - Prometheus collects metrics from itself, Node Exporter, cAdvisor, CrowdSec and Alertmanager. Metrics from Traefik, Loki, Grafana and Alloy are not collected.
-- Alerts only cover down targets and filesystems. There is no dead man's switch, so nothing reports when Prometheus or Alertmanager itself is down.
+- Alerts only cover down targets, filesystems and backups. There is no dead man's switch, so nothing reports when Prometheus or Alertmanager itself is down.
 - Alloy collects only Traefik logs. Other container logs have to be checked with `docker logs`.
 - There is no blackbox monitoring for external service availability.
 
@@ -496,7 +558,7 @@ If the Docker package is reinstalled, the `docker` group can get a different GID
 - There is no update policy yet. Image versions are maintained manually. Node Exporter and the firewall bouncer are installed manually from release archives instead of through a package manager.
 - Grafana downloads plugins from the internet when starting. These are not pinned like the container images.
 - There are no ADRs for infrastructure decisions such as VPN access, native Node Exporter, public Grafana or the firewall bouncer instead of a Traefik plugin.
-- There is no backup strategy yet. A backup needs the bind-mounted data under `/opt` (at least `grafana/data/`, `authelia/data/` and `authelia/secrets/`) in addition to `/var/lib/docker/` and `/var/lib/containerd/`. `storage_encryption_key` must be backed up with `db.sqlite3`.
+- The backup is only on the same server. A copy to another machine is planned.
 
 
 ## Direction
