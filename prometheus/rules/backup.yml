@@ -1,0 +1,19 @@
+groups:
+  - name: backup
+    rules:
+      - alert: BackupTooOld
+        expr: time() - restic_backup_last_success_timestamp_seconds > 26 * 3600
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup is older than 26 hours"
+          description: "The last successful restic backup was {{ $value | humanizeDuration }} ago."
+
+      - alert: BackupMetricMissing
+        expr: absent(restic_backup_last_success_timestamp_seconds)
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup metric is missing"
+          description: "Node Exporter does not report restic_backup_last_success_timestamp_seconds."

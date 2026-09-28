@@ -1,0 +1,51 @@
+rule_files:
+  - ../rules/backup.yml
+
+evaluation_interval: 1m
+
+tests:
+  # Last successful backup at time 0, no new backup afterwards.
+  - interval: 1h
+    input_series:
+      - series: 'restic_backup_last_success_timestamp_seconds{job="node_exporter", instance="host.docker.internal:9100"}'
+        values: '0x30'
+
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: BackupTooOld
+        exp_alerts: []
+
+      - eval_time: 25h
+        alertname: BackupMetricMissing
+        exp_alerts: []
+
+      - eval_time: 27h
+        alertname: BackupTooOld
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node_exporter
+              instance: host.docker.internal:9100
+            exp_annotations:
+              summary: "Backup is older than 26 hours"
+              description: "The last successful restic backup was 1d 3h 0m 0s ago."
+
+  # Metric not reported at all.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="node_exporter", instance="host.docker.internal:9100"}'
+        values: '1x60'
+
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: BackupMetricMissing
+        exp_alerts: []
+
+      - eval_time: 40m
+        alertname: BackupMetricMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "Backup metric is missing"
+              description: "Node Exporter does not report restic_backup_last_success_timestamp_seconds."
