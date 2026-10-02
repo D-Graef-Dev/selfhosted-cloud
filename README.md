@@ -157,7 +157,7 @@ The Hetzner Cloud Firewall allows inbound ICMP, TCP 80 and 443 and UDP 51820 (Wi
 
 The CrowdSec firewall bouncer drops traffic from banned IPs in nftables, on the `input` and `forward` hooks, before Docker's rules. This also covers requests to the bare IP, which match no Traefik router and never see a middleware. Bans come from CrowdSec's own detection and from the community blocklist. An allowlist named `trusted` contains the VPN subnet and the Docker bridge subnets, so the server cannot ban its own VPN or internal traffic.
 
-UFW denies everything by default. It allows 80, 443 and 51820/udp. SSH (22/tcp) is only allowed on `wg0` from `10.10.10.0/24`, so SSH works only over WireGuard. Node Exporter on port 9100 is only allowed from the `monitoring` subnet. The Hetzner web console is the fallback when the VPN is not available.
+UFW denies everything by default. It allows 80, 443 and 51820/udp. SSH (22/tcp) is only allowed on `wg0` from `10.10.10.0/24`, so SSH works only over WireGuard. Node Exporter listens on all interfaces, port 9100 is only allowed from the `monitoring` subnet. The Hetzner web console is the fallback when the VPN is not available.
 
 Traefik is the only container that publishes ports to the outside (80 and 443). CrowdSec publishes its local API on `127.0.0.1:8080` for the bouncer only.
 
@@ -421,10 +421,11 @@ docker run --rm --entrypoint promtool \
   prom/prometheus:v3.13.2 test rules /prometheus-config/tests/targets.test.yml
 ```
 
-Prometheus reloads its configuration and rules on `SIGHUP`:
+Prometheus and Alertmanager reload their configuration on `SIGHUP`:
 
 ```bash
-docker kill --signal=HUP prometheus
+docker exec prometheus kill -HUP 1
+docker exec alertmanager kill -HUP 1
 ```
 
 Alertmanager groups alerts by name and sends them to Discord, including resolved alerts. A critical filesystem alert mutes the matching warning. Alertmanager has no published port and no Traefik route. High availability is disabled, so the cluster port is not opened.
@@ -502,7 +503,7 @@ Starting another stack first also works. Traefik picks it up through the Docker 
 
 Grafana depends on Authelia. Without a running Authelia container, Traefik cannot complete the forward-auth check and Grafana is not reachable.
 
-The rsyslog configuration from `host/` comes before CrowdSec, and CrowdSec before the firewall bouncer.
+The rsyslog configuration from `host/` comes before CrowdSec, and CrowdSec before the firewall bouncer. After a reboot the bouncer starts before the CrowdSec container. The first start fails, systemd starts it again after 10 seconds.
 
 
 ## Known pitfalls
@@ -526,6 +527,8 @@ Traefik's file provider logs unknown keys as `ERR` and keeps the last valid conf
 Traefik only routes to a container with a healthcheck once it is healthy. A `404` shortly after a restart is expected.
 
 If the Docker package is reinstalled, the `docker` group can get a different GID. `DOCKER_GID` then has to be updated in all three `.env` files.
+
+`docker kill` marks a container as manually stopped, also with `--signal=HUP`. With `unless-stopped` it does not start again after a reboot. Prometheus and Alertmanager stayed down after a reboot test because of this.
 
 Containers use `restart: unless-stopped`. A container stopped by `restic-backup.sh` stays stopped if the server reboots during the backup.
 
