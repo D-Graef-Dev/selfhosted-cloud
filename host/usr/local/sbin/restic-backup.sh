@@ -8,6 +8,12 @@ REPO="/srv/backup/restic"
 PASSWORD_FILE="/etc/restic/password"
 METRICS_FILE="/var/lib/node_exporter/textfile_collector/restic_backup.prom"
 
+# Drop-in directories for stacks outside this repo (e.g. Henria):
+# executables in HOOK_DIR run before the backup (e.g. pg_dump),
+# each *.txt in EXCLUDE_DIR is passed to restic as --exclude-file.
+HOOK_DIR="/etc/restic/pre-backup.d"
+EXCLUDE_DIR="/etc/restic/exclude.d"
+
 # Stopped in this order, started in reverse (Authelia before Grafana).
 SERVICES=(grafana authelia portainer crowdsec)
 STOPPED=()
@@ -28,6 +34,26 @@ restic_run() {
     -e RESTIC_REPOSITORY=/repo \
     -e RESTIC_PASSWORD_FILE=/run/secrets/restic_password \
     "$IMAGE" --no-cache "$@"
+}
+
+# A failing hook is logged but does not stop the backup of everything else.
+# Each stack alerts on its own stale dumps (e.g. HenriaDumpTooOld).
+run_hooks() {
+  local hook
+  for hook in "$HOOK_DIR"/*; do
+    [[ -x "$hook" ]] || continue
+    log "Running hook $hook"
+    "$hook" || log "ERROR: hook $hook failed"
+  done
+}
+
+# Paths as seen inside the restic container (/etc is mounted at /host/etc).
+exclude_args() {
+  local file
+  for file in "$EXCLUDE_DIR"/*.txt; do
+    [[ -f "$file" ]] && printf '%s\n' "--exclude-file=/host$file"
+  done
+  return 0
 }
 
 start_services() {
@@ -53,6 +79,8 @@ fi
 # Runs on every exit, also on errors, so no service stays stopped.
 trap start_services EXIT
 
+run_hooks
+
 for svc in "${SERVICES[@]}"; do
   if [[ "$(docker inspect -f '{{.State.Running}}' "$svc" 2>/dev/null)" == "true" ]]; then
     log "Stopping $svc"
@@ -64,10 +92,12 @@ for svc in "${SERVICES[@]}"; do
 done
 
 log "Backup started"
+mapfile -t EXTRA_EXCLUDES < <(exclude_args)
 restic_run backup /host/etc /host/opt /host/root /host/home \
   --exclude /host/opt/prometheus/data \
   --exclude /host/opt/loki/data \
-  --exclude /host/root/.cache
+  --exclude /host/root/.cache \
+  "${EXTRA_EXCLUDES[@]}"
 
 start_services
 log "Backup finished, services started"

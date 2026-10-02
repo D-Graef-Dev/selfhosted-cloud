@@ -4,6 +4,11 @@ route:
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
+  routes:
+    # Informational alerts (e.g. "update available") repeat once a day,
+    # not every 4 hours.
+    - matchers: ['severity="info"']
+      repeat_interval: 24h
 
 receivers:
   - name: discord

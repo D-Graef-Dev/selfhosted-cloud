@@ -1,0 +1,42 @@
+# Henria Online (github.com/D-Graef-Dev/henria). The metrics come from the
+# scripts in deploy/host/ via the Node Exporter textfile collector.
+groups:
+  - name: henria
+    rules:
+      - alert: HenriaUpdateAvailable
+        expr: henria_update_available == 1
+        labels:
+          severity: info
+        annotations:
+          summary: "Henria {{ $labels.version }} is available"
+          description: "Images are already pulled. Deploy with: sudo henria-update {{ $labels.version }}"
+
+      # Failure newer than the last success. "or ... * 0" covers the case
+      # where no update has ever succeeded yet.
+      - alert: HenriaDeployFailed
+        expr: |
+          henria_deploy_last_failure_timestamp_seconds
+            > (henria_deploy_last_success_timestamp_seconds or henria_deploy_last_failure_timestamp_seconds * 0)
+        labels:
+          severity: warning
+        annotations:
+          summary: "Henria update failed"
+          description: "The server stays as it was, usually in maintenance mode. See the output of henria-update and docker logs henria-server."
+
+      # Without this, an expired GHCR token would silently stop all
+      # "update available" messages.
+      - alert: HenriaUpdateCheckFailing
+        expr: time() - henria_update_check_last_success_timestamp_seconds > 2 * 3600
+        labels:
+          severity: warning
+        annotations:
+          summary: "Henria update check is failing"
+          description: "Last successful check {{ $value | humanizeDuration }} ago. Check the GHCR token: journalctl -u henria-update-check"
+
+      - alert: HenriaDumpTooOld
+        expr: time() - henria_pgdump_last_success_timestamp_seconds > 26 * 3600
+        labels:
+          severity: warning
+        annotations:
+          summary: "Henria database dump is older than 26 hours"
+          description: "The last successful pg_dump was {{ $value | humanizeDuration }} ago. It runs as a hook before the nightly restic backup."

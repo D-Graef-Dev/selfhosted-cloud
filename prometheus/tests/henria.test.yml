@@ -1,0 +1,117 @@
+rule_files:
+  - ../rules/henria.yml
+
+evaluation_interval: 1m
+
+tests:
+  # Update available, then deployed.
+  - interval: 1m
+    input_series:
+      - series: 'henria_update_available{job="node_exporter", instance="host.docker.internal:9100", version="0.3.0"}'
+        values: '0x5 1x10 0x5'
+
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: HenriaUpdateAvailable
+        exp_alerts: []
+
+      - eval_time: 10m
+        alertname: HenriaUpdateAvailable
+        exp_alerts:
+          - exp_labels:
+              severity: info
+              job: node_exporter
+              instance: host.docker.internal:9100
+              version: "0.3.0"
+            exp_annotations:
+              summary: "Henria 0.3.0 is available"
+              description: "Images are already pulled. Deploy with: sudo henria-update 0.3.0"
+
+      - eval_time: 20m
+        alertname: HenriaUpdateAvailable
+        exp_alerts: []
+
+  # Success at 0, failure at 600, success again at 1200 (timestamps in s).
+  - interval: 5m
+    input_series:
+      - series: 'henria_deploy_last_success_timestamp_seconds{job="node_exporter", instance="host.docker.internal:9100"}'
+        values: '0 0 0 0 1200 1200'
+      - series: 'henria_deploy_last_failure_timestamp_seconds{job="node_exporter", instance="host.docker.internal:9100"}'
+        values: '_ _ 600 600 600 600'
+
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HenriaDeployFailed
+        exp_alerts: []
+
+      - eval_time: 15m
+        alertname: HenriaDeployFailed
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node_exporter
+              instance: host.docker.internal:9100
+            exp_annotations:
+              summary: "Henria update failed"
+              description: "The server stays as it was, usually in maintenance mode. See the output of henria-update and docker logs henria-server."
+
+      - eval_time: 25m
+        alertname: HenriaDeployFailed
+        exp_alerts: []
+
+  # Very first update fails: no success metric exists yet.
+  - interval: 5m
+    input_series:
+      - series: 'henria_deploy_last_failure_timestamp_seconds{job="node_exporter", instance="host.docker.internal:9100"}'
+        values: '600x3'
+
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HenriaDeployFailed
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node_exporter
+              instance: host.docker.internal:9100
+            exp_annotations:
+              summary: "Henria update failed"
+              description: "The server stays as it was, usually in maintenance mode. See the output of henria-update and docker logs henria-server."
+
+  # Update check and dump stop at time 0.
+  - interval: 1h
+    input_series:
+      - series: 'henria_update_check_last_success_timestamp_seconds{job="node_exporter", instance="host.docker.internal:9100"}'
+        values: '0x30'
+      - series: 'henria_pgdump_last_success_timestamp_seconds{job="node_exporter", instance="host.docker.internal:9100"}'
+        values: '0x30'
+
+    alert_rule_test:
+      - eval_time: 1h
+        alertname: HenriaUpdateCheckFailing
+        exp_alerts: []
+
+      - eval_time: 3h
+        alertname: HenriaUpdateCheckFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node_exporter
+              instance: host.docker.internal:9100
+            exp_annotations:
+              summary: "Henria update check is failing"
+              description: "Last successful check 3h 0m 0s ago. Check the GHCR token: journalctl -u henria-update-check"
+
+      - eval_time: 25h
+        alertname: HenriaDumpTooOld
+        exp_alerts: []
+
+      - eval_time: 27h
+        alertname: HenriaDumpTooOld
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: node_exporter
+              instance: host.docker.internal:9100
+            exp_annotations:
+              summary: "Henria database dump is older than 26 hours"
+              description: "The last successful pg_dump was 1d 3h 0m 0s ago. It runs as a hook before the nightly restic backup."

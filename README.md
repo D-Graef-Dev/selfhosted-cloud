@@ -411,6 +411,7 @@ Alert rules are in `prometheus/rules/`:
 | `targets.yml` | `TargetDown`: a scrape target is down for 2 minutes |
 | `node-filesystem.yml` | Four filesystem rules adapted from the node-mixin of Node Exporter |
 | `backup.yml` | `BackupTooOld`: no successful backup for 26 hours. `BackupMetricMissing`: backup metric missing for 30 minutes |
+| `henria.yml` | Henria Online: `HenriaUpdateAvailable` (info), `HenriaDeployFailed`, `HenriaUpdateCheckFailing` (no successful update check for 2 hours), `HenriaDumpTooOld` (no pg_dump for 26 hours). The metrics come from the scripts in `deploy/host/` of the Henria repo |
 
 Unit tests for the rules are in `prometheus/tests/` and run with promtool from the Prometheus image:
 
@@ -428,7 +429,7 @@ docker exec prometheus kill -HUP 1
 docker exec alertmanager kill -HUP 1
 ```
 
-Alertmanager groups alerts by name and sends them to Discord, including resolved alerts. A critical filesystem alert mutes the matching warning. Alertmanager has no published port and no Traefik route. High availability is disabled, so the cluster port is not opened.
+Alertmanager groups alerts by name and sends them to Discord, including resolved alerts. Alerts with `severity="info"` repeat every 24 hours instead of every 4 hours. A critical filesystem alert mutes the matching warning. Alertmanager has no published port and no Traefik route. High availability is disabled, so the cluster port is not opened.
 
 
 ### Backup
@@ -438,6 +439,15 @@ restic backs up `/etc`, `/opt`, `/root` and `/home` to a repository in `/srv/bac
 `restic-backup.sh` stops Grafana, Authelia, Portainer and CrowdSec, runs the backup and starts them again. They are down for about three seconds. Traefik keeps running. After that the script applies the retention policy (7 daily, 4 weekly, 6 monthly) and runs `restic check --read-data`.
 
 restic runs in the `restic/restic` image, pinned by digest, with `--network none`. The host directories are mounted read-only under `/host/`, so paths in the snapshots start with `/host/`.
+
+Stacks outside this repo hook in through two drop-in directories, so the script does not need to know them:
+
+| Directory | Content |
+|---|---|
+| `/etc/restic/pre-backup.d/` | Executables that run before the backup, e.g. a `pg_dump` of a running database. A failing hook is logged, the backup still runs. |
+| `/etc/restic/exclude.d/*.txt` | Passed to restic as `--exclude-file`. Paths as seen in the container, e.g. `/host/opt/henria/data/postgres`. |
+
+Henria uses both: its `pg_dump` lands in `/opt/henria/backup` and is backed up, the raw Postgres files are excluded. A copy of the files of a running Postgres can be inconsistent.
 
 The timer starts the backup at 03:30 local time. After a successful run the script writes `restic_backup_last_success_timestamp_seconds` to the textfile collector directory of Node Exporter.
 
