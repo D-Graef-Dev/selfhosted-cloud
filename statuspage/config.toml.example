@@ -1,0 +1,54 @@
+# Example config. Copy to config.toml and adjust.
+# config.toml is in .gitignore.
+
+title = "Status Page"
+
+# Used for all checks
+[settings]
+interval_seconds = 30
+timeout_seconds = 5
+failures_before_down = 3
+
+# http: compare the status code
+[[check]]
+name = "Website"
+type = "http"
+url = "https://www.example.com/healthz"
+expect_status = 200
+public = true
+
+# json: read one field and map its value to up, maintenance or down.
+# Values that are not listed count as down.
+[[check]]
+name = "App"
+type = "json"
+url = "https://app.example.com/status"
+field = "state"
+states = { open = "up", announced = "up", maintenance = "maintenance" }
+public = true
+
+# http check inside a Docker network, using the container name
+[[check]]
+name = "Monitoring"
+type = "http"
+url = "http://grafana:3000/api/health"
+expect_status = 200
+public = true
+
+# tls: days until the certificate expires
+[[check]]
+name = "TLS certificate"
+type = "tls"
+host = "www.example.com"
+port = 443
+min_days_valid = 14
+public = true
+
+# Not public: only in the log.
+# Admin interface behind a VPN restriction must answer 403 from outside.
+[[check]]
+name = "Admin"
+type = "http"
+url = "https://admin.example.com/"
+expect_status = 403
+public = false

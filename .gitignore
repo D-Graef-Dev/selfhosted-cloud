@@ -16,6 +16,7 @@ acme.json
 # ── Umgebungsvariablen (echte Werte) ───────────────────
 *.env
 !.env.example
+statuspage/config.toml
 
 # ── Editor / OS ─────────────────────────────────────────
 .DS_Store

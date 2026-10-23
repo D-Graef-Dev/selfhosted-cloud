@@ -1,0 +1,30 @@
+services:
+  statuspage:
+    image: ghcr.io/d-graef-dev/statuspage:0.1.0
+    container_name: statuspage
+    restart: unless-stopped
+    user: "65534:65534"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges
+    volumes:
+      - ./config.toml:/config/config.toml:ro
+    networks:
+      - proxy
+      - monitoring
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.statuspage.rule=Host(`status.${DOMAIN:?}`)
+      - traefik.http.routers.statuspage.entrypoints=websecure
+      - traefik.http.routers.statuspage.tls=true
+      - traefik.http.routers.statuspage.tls.certresolver=letsencrypt
+      - traefik.http.routers.statuspage.middlewares=rate-limit@file,frame-deny@file,secured@file
+      - traefik.http.services.statuspage.loadbalancer.server.port=8000
+
+networks:
+  proxy:
+    external: true
+  monitoring:
+    external: true
