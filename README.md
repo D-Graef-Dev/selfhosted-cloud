@@ -21,6 +21,7 @@ A family cloud and a backend for my own game are planned, with the infrastructur
 | cAdvisor | v0.57.0 | Collects metrics from running containers |
 | CrowdSec | v1.8.1 | Detects attacks in SSH, Traefik and Authelia logs |
 | Socket proxy (wollomatic) | 1.12.3 | Limits Docker API access for Traefik, Alloy and CrowdSec |
+| Statuspage | 0.1.0 | Public status page, own image ([statuspage](https://github.com/D-Graef-Dev/statuspage)) |
 
 Running directly on the host:
 
@@ -57,7 +58,7 @@ Containers that do not need to communicate with each other should not be able to
 | Traefik | `proxy`, `auth`, `traefik_socket-proxy` |
 | Authelia | `auth` |
 | Portainer | `proxy` |
-| Grafana, Prometheus, Loki | `proxy`, `monitoring` |
+| Grafana, Prometheus, Loki, Statuspage | `proxy`, `monitoring` |
 | cAdvisor, Alertmanager | `monitoring` |
 | Alloy | `monitoring`, `alloy_socket-proxy` |
 | CrowdSec | `monitoring`, `crowdsec_socket-proxy` |
@@ -93,6 +94,7 @@ graph TB
         grafana[Grafana]
         prometheus[Prometheus]
         loki[Loki]
+        statuspage[Statuspage]
     end
 
     subgraph netMon[monitoring]
@@ -128,10 +130,12 @@ graph TB
     traefik --> grafana
     traefik --> prometheus
     traefik --> loki
+    traefik --> statuspage
     traefik -->|Docker API| traefikSp
 
     grafana --> prometheus
     grafana --> loki
+    statuspage -.->|checks| grafana
 
     prometheus -.->|scrapes| cadvisor
     prometheus -.->|scrapes| nodeexp
@@ -187,6 +191,12 @@ Traefik is the only container that publishes ports to the outside (80 and 443). 
 Grafana is publicly reachable on purpose, for demonstration. It is protected by Authelia through forward-auth, followed by Grafana's own login. These are two separate logins by design, not single sign-on.
 
 Authelia bans a client IP for 15 minutes after three failed logins. A session ends after 5 minutes of inactivity. Authelia uses the filesystem notifier, so notifications such as the one for TOTP registration are written to `authelia/data/notification.txt` instead of being sent by mail.
+
+### Statuspage
+
+The status page is public without login, with `rate-limit`, `frame-deny` and `secured`. It only shows checks with `public = true`.
+
+The admin checks are only in its log. From the server, `traefik`, `portainer` and `prometheus` must answer `403`.
 
 ### Admin subdomains over VPN
 
@@ -246,7 +256,7 @@ The socket proxy networks are created by Compose and need no manual step.
 
 ### DNS
 
-All subdomains need an A record pointing to the server's public IP. The subdomains are traefik, portainer, prometheus, loki, grafana and auth.
+All subdomains need an A record pointing to the server's public IP. The subdomains are traefik, portainer, prometheus, loki, grafana, auth and status.
 
 This also applies to the services that are only reachable over VPN. Traefik requests the certificates over the HTTP challenge, and Let's Encrypt validates from the outside. Without a public DNS record, no certificate is issued.
 
@@ -263,7 +273,7 @@ Compose only reads a `.env` file from the directory of the compose file. That is
 
 | Stack | Variables |
 |---|---|
-| authelia, grafana, loki, portainer, prometheus | `DOMAIN` |
+| authelia, grafana, loki, portainer, prometheus, statuspage | `DOMAIN` |
 | traefik | `DOMAIN`, `ACME_EMAIL`, `TRAEFIK_UID`, `TRAEFIK_GID`, `DOCKER_GID` |
 | alloy, crowdsec | `DOCKER_GID` |
 
@@ -504,6 +514,17 @@ In `dashboards.yml`, `disableDeletion` is set to `false`. If a JSON file is remo
 
 The database is in `grafana/data/` and is not versioned. Users and dashboards created through the web interface are not in the repository.
 
+### Statuspage
+
+The image is built by the [statuspage](https://github.com/D-Graef-Dev/statuspage) repository and pulled from `ghcr.io/d-graef-dev/statuspage`. The package is public.
+
+`config.toml` contains the real subdomains and is not in this repository:
+```bash
+cp statuspage/config.toml.example statuspage/config.toml
+chmod 644 statuspage/config.toml
+```
+
+The container runs as `nobody` (65534) and mounts the file read-only. The `Monitoring` check calls `http://grafana:3000/api/health` over `monitoring`.
 
 ### Startup order
 
@@ -552,7 +573,8 @@ Containers use `restart: unless-stopped`. A container stopped by `restic-backup.
 - Prometheus collects metrics from itself, Node Exporter, cAdvisor, CrowdSec and Alertmanager. Metrics from Traefik, Loki, Grafana and Alloy are not collected.
 - Alerts only cover down targets, filesystems and backups. There is no dead man's switch, so nothing reports when Prometheus or Alertmanager itself is down.
 - Alloy collects only Traefik logs. Other container logs have to be checked with `docker logs`.
-- There is no blackbox monitoring for external service availability.
+- There is no monitoring from outside. The statuspage checks some endpoints, but it runs on the same server.
+- The statuspage has no metrics yet. A down service only shows on the page and does not send an alert.
 
 ### Security
 
