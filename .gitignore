@@ -32,3 +32,4 @@ commit-msg*.txt
 # Fremde Dashboards raus, eigene rein.
 grafana/provisioning/dashboards/json/*.json
 !grafana/provisioning/dashboards/json/container-metrics.json
+!grafana/provisioning/dashboards/json/henria-spieler.json

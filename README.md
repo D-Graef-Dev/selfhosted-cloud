@@ -509,7 +509,7 @@ Restored files keep owner and mode. Without Docker, the restic binary from the G
 
 `node-exporter-full.json` is not in the repository. The dashboard ID on Grafana.com is 1860 and the file must be placed in `grafana/provisioning/dashboards/json/`.
 
-The cAdvisor dashboard is self-built, which is why it is in the repository.
+The cAdvisor dashboard and `henria-spieler.json` (Henria Online: players, player limit and login queue per `env`) are self-built, which is why they are in the repository.
 
 In `dashboards.yml`, `disableDeletion` is set to `false`. If a JSON file is removed, Grafana deletes the dashboard from its database.
 
