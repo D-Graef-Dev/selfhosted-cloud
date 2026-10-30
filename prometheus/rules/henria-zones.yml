@@ -1,0 +1,56 @@
+# Henria Online, 0.5.5 (ADR 0032 in github.com/D-Graef-Dev/henria): the game
+# server catches panics instead of crashing, and reports each zone. The
+# metrics come from the game server itself (job henria, port 9091), labelled
+# with env (live, staging).
+groups:
+  - name: henria-zones
+    rules:
+      # Every panic is a bug. The server keeps running, but it has to be fixed.
+      # The series exists with 0 as soon as a place has run once, so
+      # increase() also sees the very first panic.
+      - alert: HenriaPanic
+        expr: increase(henria_panics_total[10m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Henria {{ $labels.env }}: panic caught in {{ $labels.where }}"
+          description: "The server kept running. Stack trace: docker logs henria-server 2>&1 | grep -A30 'Panic abgefangen'"
+
+      # No tick for over 10 s: the zone hangs. The watchdog only reports, it
+      # cannot restart a stuck goroutine.
+      - alert: HenriaZoneStalled
+        expr: henria_zone_last_tick_age_seconds > 10
+        labels:
+          severity: critical
+        annotations:
+          summary: "Henria {{ $labels.env }}: zone {{ $labels.zone }} is stalled"
+          description: "No tick for {{ $value | humanizeDuration }}. Goroutine dump in the log under 'Zone hängt'. Restart the server if it does not recover."
+
+      # Half of the 50 ms tick budget, for 5 minutes: it will start to stutter soon.
+      - alert: HenriaZoneTickSlow
+        expr: avg_over_time(henria_zone_tick_avg_seconds[5m]) > 0.025
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Henria {{ $labels.env }}: zone {{ $labels.zone }} ticks slowly"
+          description: "Average tick {{ $value | humanizeDuration }} over 5 minutes (budget 50 ms)."
+
+      # Someone has been waiting in the login queue for 15 min:
+      # the player limit is too low (ADR 0033).
+      - alert: HenriaLoginQueue
+        expr: henria_login_queue_length > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Henria {{ $labels.env }}: login queue for 15 min"
+          description: "{{ $value }} waiting. Check the load test results in docs/betrieb.md, then raise HENRIA_MAX_PLAYERS."
+
+      - alert: HenriaZoneReloaded
+        expr: increase(henria_zone_restarts_total[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Henria {{ $labels.env }}: zone {{ $labels.zone }} reloaded after errors"
+          description: "Its players were saved and had to log in again. See HenriaPanic and the log."

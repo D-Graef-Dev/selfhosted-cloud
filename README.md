@@ -422,6 +422,7 @@ Alert rules are in `prometheus/rules/`:
 | `node-filesystem.yml` | Four filesystem rules adapted from the node-mixin of Node Exporter |
 | `backup.yml` | `BackupTooOld`: no successful backup for 26 hours. `BackupMetricMissing`: backup metric missing for 30 minutes |
 | `henria.yml` | Henria Online: `HenriaUpdateAvailable` (info), `HenriaDeployFailed`, `HenriaUpdateCheckFailing` (no successful update check for 2 hours), `HenriaDumpTooOld` (no pg_dump for 26 hours). The metrics come from the scripts in `deploy/host/` of the Henria repo |
+| `henria-zones.yml` | Henria Online, from the game server itself (job `henria`, label `env`): `HenriaPanic`, `HenriaZoneStalled` (critical, no tick for 10 s), `HenriaZoneTickSlow` (tick over 25 ms for 5 minutes), `HenriaLoginQueue` (login queue for 15 minutes: player limit too low), `HenriaZoneReloaded` |
 
 Unit tests for the rules are in `prometheus/tests/` and run with promtool from the Prometheus image:
 

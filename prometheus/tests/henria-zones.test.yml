@@ -1,0 +1,32 @@
+rule_files:
+  - ../rules/henria-zones.yml
+
+evaluation_interval: 1m
+
+tests:
+  # Three players wait from minute 6 to 26: the alert fires only after
+  # 15 minutes of waiting and stops when the queue is empty again.
+  - interval: 1m
+    input_series:
+      - series: 'henria_login_queue_length{job="henria", env="live"}'
+        values: '0x5 3x20 0x5'
+
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: HenriaLoginQueue
+        exp_alerts: []
+
+      - eval_time: 22m
+        alertname: HenriaLoginQueue
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: henria
+              env: live
+            exp_annotations:
+              summary: "Henria live: login queue for 15 min"
+              description: "3 waiting. Check the load test results in docs/betrieb.md, then raise HENRIA_MAX_PLAYERS."
+
+      - eval_time: 30m
+        alertname: HenriaLoginQueue
+        exp_alerts: []
