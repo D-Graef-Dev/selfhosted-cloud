@@ -19,12 +19,15 @@ services:
       - ./data:/alertmanager
     secrets:
       - discord_webhook_url
+      - healthchecks_ping_url
     networks:
       - monitoring
 
 secrets:
   discord_webhook_url:
     file: ./secrets/discord_webhook_url
+  healthchecks_ping_url:
+    file: ./secrets/healthchecks_ping_url
 
 networks:
   monitoring:

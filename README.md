@@ -14,7 +14,7 @@ A family cloud and a backend for my own game are planned, with the infrastructur
 | Authelia | 4.39.22 | Forward-auth for routed services, login portal and TOTP |
 | Portainer CE | 2.39.4 | Manages containers over a web interface |
 | Prometheus | v3.13.2 | Collects metrics and stores them as time series, evaluates alert rules |
-| Alertmanager | v0.34.1 | Groups alerts from Prometheus and sends them to Discord |
+| Alertmanager | v0.34.1 | Groups alerts from Prometheus and sends them to Discord, sends a heartbeat to healthchecks.io |
 | Grafana OSS | 13.1.0 | Shows metrics and logs in dashboards |
 | Loki | 3.7.3 | Stores logs, counterpart of Prometheus |
 | Alloy | v1.18.1 | Collects logs from containers and sends them to Loki |
@@ -124,6 +124,7 @@ graph TB
     end
 
     discord([Discord])
+    healthchecks([healthchecks.io])
 
     traefik --> authelia
     traefik --> portainer
@@ -143,6 +144,7 @@ graph TB
     prometheus -.->|scrapes| alertmanager
     prometheus -->|alerts| alertmanager
     alertmanager --> discord
+    alertmanager -->|heartbeat| healthchecks
 
     alloy -->|pushes logs| loki
     alloy -->|Docker API| alloySp
@@ -311,6 +313,7 @@ Secret files are not in the repository. The `secrets/` directories do not exist 
 | `authelia/secrets/storage_encryption_key` | random string |
 | `authelia/config/users_database.yml` | users with argon2 password hashes |
 | `alertmanager/secrets/discord_webhook_url` | Discord webhook URL |
+| `alertmanager/secrets/healthchecks_ping_url` | healthchecks.io ping URL |
 
 ```bash
 mkdir -p traefik/secrets grafana/secrets authelia/secrets alertmanager/secrets
@@ -383,6 +386,16 @@ chmod 400 alertmanager/secrets/discord_webhook_url
 sudo chown 65534:65534 alertmanager/secrets/discord_webhook_url
 ```
 
+#### healthchecks.io ping URL
+
+The heartbeat goes to a check on healthchecks.io. The check expects a ping every 5 minutes, with 5 minutes grace time, and notifies by email and Discord. Alertmanager reads the ping URL through `url_file` from a Compose secret. The file must be readable by UID 65534.
+
+```bash
+read -rs -p "healthchecks.io ping URL: " HC_URL && printf '%s' "$HC_URL" > alertmanager/secrets/healthchecks_ping_url && unset HC_URL
+chmod 400 alertmanager/secrets/healthchecks_ping_url
+sudo chown 65534:65534 alertmanager/secrets/healthchecks_ping_url
+```
+
 
 ### CrowdSec
 
@@ -419,6 +432,7 @@ Alert rules are in `prometheus/rules/`:
 | File | Rules |
 |---|---|
 | `targets.yml` | `TargetDown`: a scrape target is down for 2 minutes |
+| `watchdog.yml` | `Watchdog`: always firing, the heartbeat for healthchecks.io |
 | `node-filesystem.yml` | Four filesystem rules adapted from the node-mixin of Node Exporter |
 | `backup.yml` | `BackupTooOld`: no successful backup for 26 hours. `BackupMetricMissing`: backup metric missing for 30 minutes |
 | `henria.yml` | Henria Online: `HenriaUpdateAvailable` (info), `HenriaDeployFailed`, `HenriaUpdateCheckFailing` (no successful update check for 2 hours), `HenriaDumpTooOld` (no pg_dump for 26 hours). The metrics come from the scripts in `deploy/host/` of the Henria repo |
@@ -440,7 +454,9 @@ docker exec prometheus kill -HUP 1
 docker exec alertmanager kill -HUP 1
 ```
 
-Alertmanager groups alerts by name and sends them to Discord, including resolved alerts. Alerts with `severity="info"` repeat every 24 hours instead of every 4 hours. A critical filesystem alert mutes the matching warning. Alertmanager has no published port and no Traefik route. High availability is disabled, so the cluster port is not opened.
+`docker kill --signal=HUP` is not used for this, see Known pitfalls.
+
+Alertmanager groups alerts by name and sends them to Discord, including resolved alerts. Alerts with `severity="info"` repeat every 24 hours instead of every 4 hours. A critical filesystem alert mutes the matching warning. The `Watchdog` alert goes to healthchecks.io every minute and never to Discord. If Prometheus, Alertmanager or the whole server is down, the pings stop and healthchecks.io notifies after at most 10 minutes. Alertmanager has no published port and no Traefik route. High availability is disabled, so the cluster port is not opened.
 
 
 ### Backup
@@ -560,7 +576,7 @@ Traefik only routes to a container with a healthcheck once it is healthy. A `404
 
 If the Docker package is reinstalled, the `docker` group can get a different GID. `DOCKER_GID` then has to be updated in all three `.env` files.
 
-`docker kill` marks a container as manually stopped, also with `--signal=HUP`. With `unless-stopped` it does not start again after a reboot. Prometheus and Alertmanager stayed down after a reboot test because of this.
+`docker kill` marks a container as manually stopped, also with `--signal=HUP`. With `unless-stopped` it does not start again after a reboot. Prometheus and Alertmanager stayed down after a reboot test because of this. `docker ps -a --filter status=exited` after a reboot shows containers that did not start.
 
 Containers use `restart: unless-stopped`. A container stopped by `restic-backup.sh` stays stopped if the server reboots during the backup.
 
@@ -572,9 +588,9 @@ Containers use `restart: unless-stopped`. A container stopped by `restic-backup.
 ### Observability
 
 - Prometheus collects metrics from itself, Node Exporter, cAdvisor, CrowdSec and Alertmanager. Metrics from Traefik, Loki, Grafana and Alloy are not collected.
-- Alerts only cover down targets, filesystems and backups. There is no dead man's switch, so nothing reports when Prometheus or Alertmanager itself is down.
+- Alerts only cover down targets, filesystems, backups and Henria Online. The `Watchdog` heartbeat does not cover the Discord webhook. If it breaks, alerts are lost without notice.
 - Alloy collects only Traefik logs. Other container logs have to be checked with `docker logs`.
-- There is no monitoring from outside. The statuspage checks some endpoints, but it runs on the same server.
+- Monitoring from outside only covers the alerting pipeline (healthchecks.io). Public endpoints are not checked from outside. The statuspage checks some endpoints, but it runs on the same server.
 - The statuspage has no metrics yet. A down service only shows on the page and does not send an alert.
 
 ### Security

@@ -5,6 +5,13 @@ route:
   group_interval: 5m
   repeat_interval: 4h
   routes:
+    # Heartbeat for healthchecks.io, never to Discord. Comes first and
+    # does not continue, so no other route sees it.
+    - matchers: ['alertname="Watchdog"']
+      receiver: heartbeat
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
     # Informational alerts (e.g. "update available") repeat once a day,
     # not every 4 hours.
     - matchers: ['severity="info"']
@@ -15,6 +22,10 @@ receivers:
     discord_configs:
       - webhook_url_file: /run/secrets/discord_webhook_url
         send_resolved: true
+  - name: heartbeat
+    webhook_configs:
+      - url_file: /run/secrets/healthchecks_ping_url
+        send_resolved: false
 
 inhibit_rules:
   - name: critical-mutes-warning

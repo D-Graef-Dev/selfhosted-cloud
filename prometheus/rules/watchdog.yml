@@ -1,0 +1,13 @@
+groups:
+  - name: watchdog
+    rules:
+      # Always firing. Alertmanager forwards it to healthchecks.io every
+      # minute. If Prometheus, Alertmanager or the whole server is down,
+      # the pings stop and healthchecks.io reports it.
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+        annotations:
+          summary: "Alerting pipeline is alive"
+          description: "Always firing. If healthchecks.io stops receiving it, Prometheus or Alertmanager is down."

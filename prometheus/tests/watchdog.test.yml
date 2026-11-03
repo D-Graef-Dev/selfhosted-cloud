@@ -1,0 +1,16 @@
+rule_files:
+  - ../rules/watchdog.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: Watchdog
+        exp_alerts:
+          - exp_labels:
+              severity: none
+            exp_annotations:
+              summary: "Alerting pipeline is alive"
+              description: "Always firing. If healthchecks.io stops receiving it, Prometheus or Alertmanager is down."
