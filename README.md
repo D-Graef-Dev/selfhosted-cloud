@@ -587,7 +587,7 @@ Containers use `restart: unless-stopped`. A container stopped by `restic-backup.
 
 ### Observability
 
-- Prometheus collects metrics from itself, Node Exporter, cAdvisor, CrowdSec and Alertmanager. Metrics from Traefik, Loki, Grafana and Alloy are not collected.
+- Prometheus collects metrics from itself, Node Exporter, cAdvisor, CrowdSec, Alertmanager and the Henria Online game servers (job `henria`, live and staging over `monitoring`). Metrics from Traefik, Loki, Grafana and Alloy are not collected.
 - Alerts only cover down targets, filesystems, backups and Henria Online. The `Watchdog` heartbeat does not cover the Discord webhook. If it breaks, alerts are lost without notice.
 - Alloy collects only Traefik logs. Other container logs have to be checked with `docker logs`.
 - Monitoring from outside only covers the alerting pipeline (healthchecks.io). Public endpoints are not checked from outside. The statuspage checks some endpoints, but it runs on the same server.

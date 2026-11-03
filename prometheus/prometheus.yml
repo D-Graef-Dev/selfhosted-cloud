@@ -34,3 +34,12 @@ scrape_configs:
   - job_name: "alertmanager"
     static_configs:
       - targets: ["alertmanager:9093"]
+
+  - job_name: "henria"
+    static_configs:
+      - targets: ["henria-server:9091"]
+        labels:
+          env: live
+      - targets: ["henria-staging-server:9091"]
+        labels:
+          env: staging
